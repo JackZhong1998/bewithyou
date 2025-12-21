@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="font-bold text-2xl tracking-tighter cursor-pointer select-none bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent"
           style={{ fontFamily: '"Inter", sans-serif' }}
         >
-          withyou
+          bewithyou
         </div>
         
         <div className="flex items-center gap-4">

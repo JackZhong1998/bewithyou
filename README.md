@@ -1,4 +1,4 @@
-# withyou - 声音克隆陪伴应用
+# bewithyou - 声音克隆陪伴应用
 
 一个基于 React + TypeScript 的声音克隆应用，使用 Inworld AI 的语音克隆和 TTS 服务。
 
@@ -53,7 +53,7 @@ npm run build
 ## 项目结构
 
 ```
-withyou/
+bewithyou/
 ├── src/
 │   ├── components/          # React 组件
 │   │   ├── Header.tsx       # 顶部导航栏

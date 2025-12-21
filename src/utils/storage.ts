@@ -1,7 +1,7 @@
 const STORAGE_KEYS = {
-  LANGUAGE: 'withyou_language',
-  INVITE_CODE: 'withyou_invite_code',
-  CHARACTERS: 'withyou_characters',
+  LANGUAGE: 'bewithyou_language',
+  INVITE_CODE: 'bewithyou_invite_code',
+  CHARACTERS: 'bewithyou_characters',
 };
 
 export const storage = {
