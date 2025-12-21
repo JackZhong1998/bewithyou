@@ -1,4 +1,4 @@
-import { Language, LanguageCode, VocabularyWord } from './types';
+import { Language, VocabularyWord } from './types';
 
 export const LANGUAGES: Language[] = [
   { code: 'zh-CN', label: '简体中文' },
@@ -52,8 +52,8 @@ export const VIDEO_TOOLS = [
 ];
 
 export const getInviteCodes = (): string[] => {
-  const codes = import.meta.env.VITE_INVITE_CODES || '520';
-  return codes.split(',').map(c => c.trim());
+  const codes = (import.meta.env.VITE_INVITE_CODES as string) || '520';
+  return codes.split(',').map((c: string) => c.trim());
 };
 
 export const INVITE_FORM_URL = import.meta.env.VITE_INVITE_FORM_URL || 'https://docs.google.com/forms/d/e/1FAIpQLSe5HlanZedWxmcWj7AeBLaCeGMV8_4mlpVGUNea0e1CGdoxGA/viewform?usp=publish-editor';
