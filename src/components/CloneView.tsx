@@ -33,16 +33,60 @@ export const CloneView: React.FC<CloneViewProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [cloningProgress, setCloningProgress] = useState<string | null>(null);
+  const [roleName, setRoleName] = useState('');
+  const [roleDescription, setRoleDescription] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const validateFileDuration = (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const isVideo = file.type.startsWith('video/');
+      const media = document.createElement(isVideo ? 'video' : 'audio');
+      const url = URL.createObjectURL(file);
+      media.preload = 'metadata';
+      media.src = url;
+      media.onloadedmetadata = () => {
+        const duration = media.duration || 0;
+        URL.revokeObjectURL(url);
+        resolve(duration);
+      };
+      media.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('无法读取音频时长'));
+      };
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Check file size (10MB max)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('文件大小不能超过 10MB');
+      const isAudio = file.type.startsWith('audio/');
+      const isVideo = file.type.startsWith('video/');
+
+      if (!isAudio && !isVideo) {
+        alert('仅支持音频或视频文件');
         return;
       }
+
+      const maxSizeMB = isAudio ? 20 : 100;
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        alert(
+          isAudio
+            ? '音频文件大小不能超过 20MB'
+            : '视频文件大小不能超过 100MB'
+        );
+        return;
+      }
+
+      try {
+        const duration = await validateFileDuration(file);
+        if (duration < 30 || duration > 300) {
+          alert('请上传 30 秒 ~ 5 分钟之间的音频片段');
+          return;
+        }
+      } catch (err) {
+        console.error('读取音频时长失败:', err);
+      }
+
       setSelectedFile(file);
     }
   };
@@ -62,14 +106,21 @@ export const CloneView: React.FC<CloneViewProps> = ({
     setIsProcessing(true);
     setCloningProgress('正在处理音频...');
     
+    const defaultNameIndex = (characters?.length || 0) + 1;
+    const finalName = (roleName || '').trim() || `我的角色#${String(defaultNameIndex).padStart(3, '0')}`;
+    const finalDescription = (roleDescription || '').trim() || '这是一个通过语音克隆创建的角色';
+
     // Create cloning character first
     const tempChar: Character = {
       id: Date.now().toString(),
-      name: `Clone ${new Date().toLocaleDateString()}`,
+      name: finalName,
       avatarUrl: `https://picsum.photos/seed/${Date.now()}/200/200`,
       voiceId: '',
       status: 'cloning',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      description: finalDescription,
+      isPublic: false,
+      creatorName: '本机用户',
     };
     
     if (onCloneStart) {
@@ -80,7 +131,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
       const langCode = LANGUAGE_CODE_MAP[sourceLang] || 'AUTO';
       const voiceId = await cloneVoice(
         selectedFile!, 
-        `Clone ${new Date().toLocaleDateString()}`,
+        finalName,
         langCode,
         removeNoise
       );
@@ -100,6 +151,8 @@ export const CloneView: React.FC<CloneViewProps> = ({
         setSelectedFile(null);
         setAgreed(false);
         setRemoveNoise(false);
+        setRoleName('');
+        setRoleDescription('');
       }, 500);
     } catch (error: any) {
       console.error('Cloning failed:', error);
@@ -138,7 +191,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
           type="file" 
           ref={fileInputRef} 
           onChange={handleFileChange} 
-          accept="audio/*" 
+          accept="audio/*,video/*" 
           className="hidden" 
         />
         <div className="flex flex-col items-center gap-4">
@@ -147,13 +200,13 @@ export const CloneView: React.FC<CloneViewProps> = ({
           </div>
           <div>
             <p className="font-semibold text-gray-900">
-              {selectedFile ? selectedFile.name : '点击上传音频'}
+              {selectedFile ? selectedFile.name : '点击上传音频或视频'}
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              支持 WAV, MP3, M4A (最大 10MB)
+              支持 MP3 / WAV / M4A 音频（≤20MB）及 MP4 / MOV 视频（≤100MB）
             </p>
             <p className="text-xs text-gray-400 mt-2">
-              建议：5-15秒清晰音频，避免背景噪音
+              建议：30 秒 - 5 分钟清晰语音，避免背景噪音
             </p>
           </div>
         </div>
@@ -161,6 +214,29 @@ export const CloneView: React.FC<CloneViewProps> = ({
 
       {/* Settings */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">角色名称（可选）</label>
+            <input
+              type="text"
+              value={roleName}
+              onChange={(e) => setRoleName(e.target.value)}
+              placeholder="例如：温柔男友 / 严厉老师 / 虚拟恋人"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">角色描述（可选）</label>
+            <input
+              type="text"
+              value={roleDescription}
+              onChange={(e) => setRoleDescription(e.target.value)}
+              placeholder="例如：你是我在国外留学的男朋友，声音温柔，会耐心纠正我的发音"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">原声语言</label>
           <select 

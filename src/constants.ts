@@ -1,4 +1,4 @@
-import { Language, VocabularyWord } from './types';
+import { Language, VocabularyWord, Character } from './types';
 
 export const LANGUAGES: Language[] = [
   { code: 'zh-CN', label: '简体中文' },
@@ -57,6 +57,43 @@ export const getInviteCodes = (): string[] => {
 };
 
 export const INVITE_FORM_URL = import.meta.env.VITE_INVITE_FORM_URL || 'https://docs.google.com/forms/d/e/1FAIpQLSe5HlanZedWxmcWj7AeBLaCeGMV8_4mlpVGUNea0e1CGdoxGA/viewform?usp=publish-editor';
+
+/** 社区角色假数据（仅前端展示，使用 = 复制到我的角色） */
+export const MOCK_COMMUNITY_CHARACTERS: Character[] = [
+  {
+    id: 'community-1',
+    name: '温柔学姐',
+    avatarUrl: 'https://picsum.photos/seed/c1/200/200',
+    voiceId: '',
+    status: 'ready',
+    createdAt: Date.now() - 86400000 * 5,
+    description: '声音温柔，适合陪你背单词、练口语。',
+    isPublic: true,
+    creatorName: '社区用户',
+  },
+  {
+    id: 'community-2',
+    name: '严厉老师',
+    avatarUrl: 'https://picsum.photos/seed/c2/200/200',
+    voiceId: '',
+    status: 'ready',
+    createdAt: Date.now() - 86400000 * 2,
+    description: '严格纠音，适合备考党。',
+    isPublic: true,
+    creatorName: '社区用户',
+  },
+  {
+    id: 'community-3',
+    name: '暧昧男友',
+    avatarUrl: 'https://picsum.photos/seed/c3/200/200',
+    voiceId: '',
+    status: 'ready',
+    createdAt: Date.now() - 86400000 * 10,
+    description: '你是我在国外留学的男朋友，会耐心纠正发音。',
+    isPublic: true,
+    creatorName: '社区用户',
+  },
+];
 
 export const VOCABULARY_LIST: VocabularyWord[] = [
   {

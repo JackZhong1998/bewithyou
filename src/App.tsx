@@ -1,40 +1,77 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { Header } from './components/Header';
-import { CloneView } from './components/CloneView';
+import { HomeView } from './components/HomeView';
 import { CharacterList } from './components/CharacterList';
 import { CharacterDetail } from './components/CharacterDetail';
 import { LearningView } from './components/LearningView';
 import { Toast } from './components/Toast';
-import { ViewState, LanguageCode, Character } from './types';
+import { LandingPage } from './components/landing/LandingPage';
+import { OnboardingQuestions } from './components/landing/OnboardingQuestions';
+import { ViewState, HomeTab, LanguageCode, Character } from './types';
 import { storage } from './utils/storage';
 import { LANGUAGES } from './constants';
+import { fetchMyCharacters, upsertCharacter, deleteCharacter } from './services/characterDb';
+
+const hasSupabase = Boolean(
+  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const App = () => {
+  const { userId } = useAuth();
+  const [onboardingDone, setOnboardingDone] = useState(false);
+
+  useEffect(() => {
+    if (userId) setOnboardingDone(storage.getOnboardingDone());
+  }, [userId]);
+
+  // 官网流程：未登录 → 落地页；已登录未完成问卷 → 问卷；否则 → 产品内页
+  if (!userId) return <LandingPage />;
+  if (!onboardingDone) {
+    return (
+      <OnboardingQuestions
+        onComplete={() => setOnboardingDone(true)}
+      />
+    );
+  }
+
+  return <ProductApp />;
+};
+
+const ProductApp = () => {
+  const { userId } = useAuth();
   const [currentLang, setCurrentLang] = useState<LanguageCode>('zh-CN');
-  const [view, setView] = useState<ViewState>('CLONE');
+  const [view, setView] = useState<ViewState>('HOME');
+  const [homeTab, setHomeTab] = useState<HomeTab>('learn');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Load saved language and characters
+  // 语言：始终从本地恢复
   useEffect(() => {
     const savedLang = storage.getLanguage();
     if (savedLang && LANGUAGES.find(l => l.code === savedLang)) {
       setCurrentLang(savedLang as LanguageCode);
     }
-
-    const savedChars = storage.getCharacters();
-    if (savedChars && savedChars.length > 0) {
-      setCharacters(savedChars);
-    }
   }, []);
 
-  // Save characters when they change
+  // 角色列表：已登录且配置了 Supabase 则从数据库拉取，否则从本地恢复
   useEffect(() => {
-    if (characters.length > 0) {
-      storage.saveCharacters(characters);
+    if (userId && hasSupabase) {
+      fetchMyCharacters(userId).then(setCharacters);
+    } else {
+      const saved = storage.getCharacters();
+      setCharacters(saved?.length ? saved : []);
     }
-  }, [characters]);
+  }, [userId]);
+
+  // 角色变更：写回本地，已登录且配置了 Supabase 则同步到数据库
+  useEffect(() => {
+    if (characters.length > 0) storage.saveCharacters(characters);
+    if (userId && hasSupabase) {
+      characters.forEach((c) => upsertCharacter(userId, c));
+    }
+  }, [characters, userId]);
 
   const handleLangChange = (lang: LanguageCode) => {
     setCurrentLang(lang);
@@ -46,9 +83,9 @@ const App = () => {
   };
 
   const handleCloneSuccess = (newChar: Character) => {
-    setCharacters(prev => prev.map(c => 
-      c.id === newChar.id ? newChar : c
-    ));
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === newChar.id ? newChar : c))
+    );
   };
 
   const handleCloneFailed = (charId: string) => {
@@ -65,20 +102,35 @@ const App = () => {
   const selectedChar = characters.find(c => c.id === selectedCharId);
 
   const updateCharacter = (updated: Character) => {
-    setCharacters(prev => prev.map(c => c.id === updated.id ? updated : c));
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === updated.id ? updated : c))
+    );
+  };
+
+  const handleDeleteCharacter = (characterId: string) => {
+    setCharacters((prev) => prev.filter((c) => c.id !== characterId));
+    if (selectedCharId === characterId) setSelectedCharId(null);
+    if (userId && hasSupabase) deleteCharacter(userId, characterId);
   };
 
   let content;
   switch (view) {
-    case 'CLONE':
+    case 'HOME':
       content = (
-        <CloneView 
+        <HomeView
+          homeTab={homeTab}
+          setHomeTab={setHomeTab}
+          characters={characters}
+          onSelectCharacterForLearning={(c) => {
+            setSelectedCharId(c.id);
+            setView('LEARNING');
+          }}
           onCloneSuccess={handleCloneSuccess}
           onCloneFailed={handleCloneFailed}
           onCloneStart={handleCloneStart}
           hasInvited={storage.hasInvited()}
-          characters={characters}
           onSelectCharacter={handleSelectCharacter}
+          onGoToCharacterList={() => setView('CHARACTER_LIST')}
         />
       );
       break;
@@ -90,7 +142,11 @@ const App = () => {
             setSelectedCharId(c.id);
             setView('CHARACTER_DETAIL');
           }} 
-          onCreateNew={() => setView('CLONE')}
+          onCreateNew={() => {
+            setHomeTab('clone');
+            setView('HOME');
+          }}
+          onUseCommunity={(char) => setCharacters((prev) => [char, ...prev])}
         />
       );
       break;
@@ -102,8 +158,12 @@ const App = () => {
             onBack={() => setView('CHARACTER_LIST')}
             onStartLearning={() => setView('LEARNING')}
             onUpdateCharacter={updateCharacter}
+            onDelete={handleDeleteCharacter}
             showToast={setToastMsg}
-            onCreateNew={() => setView('CLONE')}
+            onCreateNew={() => {
+              setHomeTab('clone');
+              setView('HOME');
+            }}
           />
         );
       }
@@ -134,17 +194,23 @@ const App = () => {
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
       
-      {view !== 'LEARNING' && (
-        <Header 
-          currentLang={currentLang} 
-          setLang={handleLangChange} 
-          goHome={() => setView('CLONE')}
-          goToCharacters={() => {
-            if (characters.length > 0) setView('CHARACTER_LIST');
-            else setView('CLONE');
-          }}
-        />
-      )}
+      <Header
+        view={view}
+        homeTab={homeTab}
+        hasSelectedCharacter={!!selectedCharId}
+        currentLang={currentLang}
+        setLang={handleLangChange}
+        goToLearn={() => { setView('HOME'); setHomeTab('learn'); }}
+        goToClone={() => { setView('HOME'); setHomeTab('clone'); }}
+        goToCharacterList={() => setView('CHARACTER_LIST')}
+        goToCharacterDetail={() => selectedCharId && setView('CHARACTER_DETAIL')}
+        onBack={
+          view === 'LEARNING' ? () => setView('CHARACTER_DETAIL')
+          : view === 'CHARACTER_DETAIL' ? () => setView('CHARACTER_LIST')
+          : undefined
+        }
+        showBackButton={view === 'LEARNING' || view === 'CHARACTER_DETAIL'}
+      />
 
       <main className="pt-2">
         {content}
