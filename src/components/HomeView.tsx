@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BookOpen, Mic } from 'lucide-react';
 import { Character } from '../types';
 import { CloneView } from './CloneView';

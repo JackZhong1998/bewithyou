@@ -19,7 +19,8 @@ interface HeaderProps {
   showBackButton: boolean;
 }
 
-const TAB_STYLE = 'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors';
+const TAB_STYLE =
+  'flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors justify-start';
 const TAB_ACTIVE = 'bg-black text-white';
 const TAB_INACTIVE = 'text-gray-600 hover:bg-gray-100 hover:text-gray-900';
 
@@ -45,71 +46,60 @@ export const Header: React.FC<HeaderProps> = ({
   const isCharacterDetailActive = view === 'CHARACTER_DETAIL';
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200">
-      <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        {/* 左上角：返回（如有）+ 四个页面 Tab */}
-        <div className="flex items-center gap-2 min-w-0">
-          {showBackButton && onBack && (
-            <button
-              onClick={onBack}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 shrink-0"
-              title="返回"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
+    <aside className="sticky top-0 z-50 flex h-screen w-[220px] shrink-0 flex-col border-r border-gray-200 bg-white/90 backdrop-blur-md pb-safe">
+      <div className="flex min-h-0 flex-1 flex-col p-3">
+        {showBackButton && onBack && (
+          <button
+            onClick={onBack}
+            className="mb-2 flex shrink-0 items-center gap-2 rounded-lg p-2 text-gray-600 hover:bg-gray-100"
+            title="返回"
+            type="button"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            <span className="text-sm font-medium">返回</span>
+          </button>
+        )}
+
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+          <button type="button" onClick={goToLearn} className={`${TAB_STYLE} ${isLearnActive ? TAB_ACTIVE : TAB_INACTIVE}`}>
+            <BookOpen size={16} className="shrink-0" /> 背单词
+          </button>
+          <button type="button" onClick={goToClone} className={`${TAB_STYLE} ${isCloneActive ? TAB_ACTIVE : TAB_INACTIVE}`}>
+            <Mic size={16} className="shrink-0" /> 克隆
+          </button>
+          <button type="button" onClick={goToCharacterList} className={`${TAB_STYLE} ${isCharacterListActive ? TAB_ACTIVE : TAB_INACTIVE}`}>
+            <User size={16} className="shrink-0" /> 角色
+          </button>
+          {hasSelectedCharacter && (
+            <button type="button" onClick={goToCharacterDetail} className={`${TAB_STYLE} ${isCharacterDetailActive ? TAB_ACTIVE : TAB_INACTIVE}`}>
+              <UserCircle size={16} className="shrink-0" /> 详情
             </button>
           )}
-          <nav className="flex items-center gap-1 flex-wrap">
-            <button
-              onClick={goToLearn}
-              className={`${TAB_STYLE} ${isLearnActive ? TAB_ACTIVE : TAB_INACTIVE}`}
-            >
-              <BookOpen size={16} /> 背单词
-            </button>
-            <button
-              onClick={goToClone}
-              className={`${TAB_STYLE} ${isCloneActive ? TAB_ACTIVE : TAB_INACTIVE}`}
-            >
-              <Mic size={16} /> 克隆
-            </button>
-            <button
-              onClick={goToCharacterList}
-              className={`${TAB_STYLE} ${isCharacterListActive ? TAB_ACTIVE : TAB_INACTIVE}`}
-            >
-              <User size={16} /> 角色
-            </button>
-            {hasSelectedCharacter && (
-              <button
-                onClick={goToCharacterDetail}
-                className={`${TAB_STYLE} ${isCharacterDetailActive ? TAB_ACTIVE : TAB_INACTIVE}`}
-              >
-                <UserCircle size={16} /> 详情
-              </button>
-            )}
-          </nav>
-        </div>
+        </nav>
 
-        {/* 右侧：语言、登录等 */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="mt-auto shrink-0 space-y-3 border-t border-gray-100 pt-4">
           <div className="relative">
             <button
+              type="button"
               onClick={() => setShowLangMenu(!showLangMenu)}
-              className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-black transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-100"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-black"
             >
-              <Globe size={16} />
-              <span className="hidden sm:inline">{currentLangLabel}</span>
+              <Globe size={16} className="shrink-0" />
+              <span className="truncate">{currentLangLabel}</span>
             </button>
             {showLangMenu && (
-              <div className="absolute right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+              <div className="absolute bottom-0 left-full z-50 ml-1 w-40 rounded-xl border border-gray-100 bg-white py-1 shadow-lg">
                 {LANGUAGES.map((lang) => (
                   <button
                     key={lang.code}
+                    type="button"
                     onClick={() => {
                       setLang(lang.code as LanguageCode);
                       setShowLangMenu(false);
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
                       currentLang === lang.code ? 'font-semibold text-blue-600' : 'text-gray-700'
                     }`}
                   >
@@ -119,9 +109,11 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
-          <AuthButtons />
+          <div className="flex items-center justify-start px-1">
+            <AuthButtons />
+          </div>
         </div>
       </div>
-    </header>
+    </aside>
   );
 };

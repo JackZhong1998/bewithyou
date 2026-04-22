@@ -16,8 +16,7 @@ export interface Character {
    */
   description?: string;
   /**
-   * 是否公开到社区角色。
-   * 仅前端标记，当前版本仍存本地。
+   * 是否公开到社区角色（与 voiceId 一并写入 Supabase `characters.is_public`）。
    */
   isPublic?: boolean;
   /**

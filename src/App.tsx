@@ -11,7 +11,12 @@ import { OnboardingQuestions } from './components/landing/OnboardingQuestions';
 import { ViewState, HomeTab, LanguageCode, Character } from './types';
 import { storage } from './utils/storage';
 import { LANGUAGES } from './constants';
-import { fetchMyCharacters, upsertCharacter, deleteCharacter } from './services/characterDb';
+import {
+  fetchMyCharacters,
+  upsertCharacter,
+  deleteCharacter,
+  shouldSyncCharacterToSupabase,
+} from './services/characterDb';
 
 const hasSupabase = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -65,11 +70,14 @@ const ProductApp = () => {
     }
   }, [userId]);
 
-  // 角色变更：写回本地，已登录且配置了 Supabase 则同步到数据库
+  // 角色变更：写回本地；Supabase 只同步「ready + 已有 Inworld voice_id」
+  //（含分享到社区：is_public 与 voice_id 同一行 upsert）
   useEffect(() => {
     if (characters.length > 0) storage.saveCharacters(characters);
     if (userId && hasSupabase) {
-      characters.forEach((c) => upsertCharacter(userId, c));
+      characters.filter(shouldSyncCharacterToSupabase).forEach((c) => {
+        void upsertCharacter(userId, c);
+      });
     }
   }, [characters, userId]);
 
@@ -181,7 +189,7 @@ const ProductApp = () => {
   }
 
   return (
-    <div className="min-h-screen font-sans bg-gray-50/50 pb-safe">
+    <div className="flex min-h-screen font-sans bg-gray-50/50">
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
@@ -193,7 +201,7 @@ const ProductApp = () => {
         .animate-scale-in { animation: scaleIn 0.2s ease-out; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
-      
+
       <Header
         view={view}
         homeTab={homeTab}
@@ -212,8 +220,8 @@ const ProductApp = () => {
         showBackButton={view === 'LEARNING' || view === 'CHARACTER_DETAIL'}
       />
 
-      <main className="pt-2">
-        {content}
+      <main className="min-h-screen min-w-0 flex-1 overflow-x-auto pb-safe pt-2">
+        <div className="mx-auto max-w-4xl px-4">{content}</div>
       </main>
 
       {toastMsg && (

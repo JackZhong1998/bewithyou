@@ -1,6 +1,11 @@
 import { supabase, rowToCharacter, characterToRow, type CharacterRow } from '../lib/supabase';
 import type { Character } from '../types';
 
+/** 仅同步「克隆已完成且已有 Inworld voiceId」的角色，避免把克隆中的空 voice 写入库 */
+export function shouldSyncCharacterToSupabase(c: Character): boolean {
+  return c.status === 'ready' && Boolean(c.voiceId?.trim());
+}
+
 export async function fetchMyCharacters(clerkUserId: string): Promise<Character[]> {
   const { data, error } = await supabase
     .from('characters')
@@ -20,6 +25,7 @@ export async function fetchPublicCharacters(): Promise<Character[]> {
     .from('characters')
     .select('*')
     .eq('is_public', true)
+    .neq('voice_id', '')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -30,6 +36,9 @@ export async function fetchPublicCharacters(): Promise<Character[]> {
 }
 
 export async function upsertCharacter(clerkUserId: string, character: Character): Promise<boolean> {
+  if (!shouldSyncCharacterToSupabase(character)) {
+    return false;
+  }
   const row = characterToRow(character, clerkUserId);
   const { error } = await supabase.from('characters').upsert(
     {
