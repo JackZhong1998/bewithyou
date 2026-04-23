@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { storage } from '../../utils/storage';
+import { useI18n } from '../../i18n';
 
 export interface OnboardingAnswers {
   goal?: string;
@@ -8,53 +9,53 @@ export interface OnboardingAnswers {
   voice?: string;
 }
 
-const QUESTIONS: Array<{
-  key: keyof OnboardingAnswers;
-  title: string;
-  options: Array<{ value: string; label: string }>;
-}> = [
-  {
-    key: 'goal',
-    title: '你学英语的主要目的是？',
-    options: [
-      { value: 'exam', label: '备考（四六级 / 雅思 / 托福）' },
-      { value: 'daily', label: '日常交流、旅行' },
-      { value: 'work', label: '工作 / 商务' },
-      { value: 'interest', label: '兴趣、追剧听歌' },
-    ],
-  },
-  {
-    key: 'style',
-    title: '你喜欢的学习方式？',
-    options: [
-      { value: 'alone', label: '一个人安静学' },
-      { value: 'with_voice', label: '有人陪着说、有声音反馈' },
-      { value: 'game', label: '像玩游戏一样闯关' },
-      { value: 'mixed', label: '看心情，多种都想试试' },
-    ],
-  },
-  {
-    key: 'voice',
-    title: '你希望「陪伴你」的声音是？',
-    options: [
-      { value: 'idol', label: '偶像 / 喜欢的角色' },
-      { value: 'lover', label: '恋人 / 朋友的声音' },
-      { value: 'teacher', label: '像老师一样专业清晰' },
-      { value: 'any', label: '都可以，好听就行' },
-    ],
-  },
-];
-
 interface OnboardingQuestionsProps {
   onComplete: () => void;
 }
 
 export const OnboardingQuestions: React.FC<OnboardingQuestionsProps> = ({ onComplete }) => {
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
+  const questions: Array<{
+    key: keyof OnboardingAnswers;
+    title: string;
+    options: Array<{ value: string; label: string }>;
+  }> = [
+    {
+      key: 'goal',
+      title: t('onboarding.goal.title'),
+      options: [
+        { value: 'exam', label: t('onboarding.goal.exam') },
+        { value: 'daily', label: t('onboarding.goal.daily') },
+        { value: 'work', label: t('onboarding.goal.work') },
+        { value: 'interest', label: t('onboarding.goal.interest') },
+      ],
+    },
+    {
+      key: 'style',
+      title: t('onboarding.style.title'),
+      options: [
+        { value: 'alone', label: t('onboarding.style.alone') },
+        { value: 'with_voice', label: t('onboarding.style.with_voice') },
+        { value: 'game', label: t('onboarding.style.game') },
+        { value: 'mixed', label: t('onboarding.style.mixed') },
+      ],
+    },
+    {
+      key: 'voice',
+      title: t('onboarding.voice.title'),
+      options: [
+        { value: 'idol', label: t('onboarding.voice.idol') },
+        { value: 'lover', label: t('onboarding.voice.lover') },
+        { value: 'teacher', label: t('onboarding.voice.teacher') },
+        { value: 'any', label: t('onboarding.voice.any') },
+      ],
+    },
+  ];
 
-  const current = QUESTIONS[step];
-  const isLast = step === QUESTIONS.length - 1;
+  const current = questions[step];
+  const isLast = step === questions.length - 1;
 
   const handleSelect = (key: keyof OnboardingAnswers, value: string) => {
     const next = { ...answers, [key]: value };
@@ -73,7 +74,7 @@ export const OnboardingQuestions: React.FC<OnboardingQuestionsProps> = ({ onComp
       <div className="w-full max-w-lg">
         {/* 进度 */}
         <div className="flex gap-2 mb-10">
-          {QUESTIONS.map((_, i) => (
+          {questions.map((_, i) => (
             <div
               key={i}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -108,7 +109,7 @@ export const OnboardingQuestions: React.FC<OnboardingQuestionsProps> = ({ onComp
             onClick={() => setStep((s) => s - 1)}
             className="mt-6 text-sm text-slate-500 hover:text-slate-700"
           >
-            上一题
+            {t('onboarding.prev')}
           </button>
         )}
       </div>

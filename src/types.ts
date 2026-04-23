@@ -1,4 +1,4 @@
-export type LanguageCode = 'zh-CN' | 'zh-TW' | 'ko-KR' | 'ja-JP' | 'th-TH' | 'vi-VN';
+export type LanguageCode = 'zh-CN' | 'zh-TW' | 'ko-KR' | 'ja-JP' | 'th-TH' | 'vi-VN' | 'en-US';
 
 export type ViewState = 'HOME' | 'CHARACTER_LIST' | 'CHARACTER_DETAIL' | 'LEARNING';
 export type HomeTab = 'learn' | 'clone';

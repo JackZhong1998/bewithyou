@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Header } from './components/Header';
 import { HomeView } from './components/HomeView';
 import { CharacterList } from './components/CharacterList';
@@ -11,6 +12,7 @@ import { OnboardingQuestions } from './components/landing/OnboardingQuestions';
 import { ViewState, HomeTab, LanguageCode, Character } from './types';
 import { storage } from './utils/storage';
 import { LANGUAGES } from './constants';
+import { I18nProvider } from './i18n';
 import {
   fetchMyCharacters,
   upsertCharacter,
@@ -24,41 +26,88 @@ const hasSupabase = Boolean(
 
 const App = () => {
   const { userId } = useAuth();
+  const [currentLang, setCurrentLang] = useState<LanguageCode>('zh-CN');
   const [onboardingDone, setOnboardingDone] = useState(false);
 
   useEffect(() => {
-    if (userId) setOnboardingDone(storage.getOnboardingDone());
-  }, [userId]);
-
-  // 官网流程：未登录 → 落地页；已登录未完成问卷 → 问卷；否则 → 产品内页
-  if (!userId) return <LandingPage />;
-  if (!onboardingDone) {
-    return (
-      <OnboardingQuestions
-        onComplete={() => setOnboardingDone(true)}
-      />
-    );
-  }
-
-  return <ProductApp />;
-};
-
-const ProductApp = () => {
-  const { userId } = useAuth();
-  const [currentLang, setCurrentLang] = useState<LanguageCode>('zh-CN');
-  const [view, setView] = useState<ViewState>('HOME');
-  const [homeTab, setHomeTab] = useState<HomeTab>('learn');
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-
-  // 语言：始终从本地恢复
-  useEffect(() => {
     const savedLang = storage.getLanguage();
-    if (savedLang && LANGUAGES.find(l => l.code === savedLang)) {
+    if (savedLang && LANGUAGES.find((l) => l.code === savedLang)) {
       setCurrentLang(savedLang as LanguageCode);
     }
   }, []);
+
+  useEffect(() => {
+    if (userId) {
+      setOnboardingDone(storage.getOnboardingDone());
+      return;
+    }
+    setOnboardingDone(false);
+  }, [userId]);
+
+  const handleLangChange = (lang: LanguageCode) => {
+    setCurrentLang(lang);
+    storage.setLanguage(lang);
+  };
+
+  return (
+    <I18nProvider language={currentLang} setLanguage={handleLangChange}>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/onboarding"
+          element={
+            userId ? (
+              onboardingDone ? (
+                <Navigate to="/app/learn" replace />
+              ) : (
+                <OnboardingQuestions onComplete={() => setOnboardingDone(true)} />
+              )
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/app/*"
+          element={
+            userId ? (
+              onboardingDone ? (
+                <ProductApp currentLang={currentLang} onLanguageChange={handleLangChange} />
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={userId ? (onboardingDone ? '/app/learn' : '/onboarding') : '/'}
+              replace
+            />
+          }
+        />
+      </Routes>
+    </I18nProvider>
+  );
+};
+
+interface ProductAppProps {
+  currentLang: LanguageCode;
+  onLanguageChange: (lang: LanguageCode) => void;
+}
+
+const ProductApp: React.FC<ProductAppProps> = ({ currentLang, onLanguageChange }) => {
+  const { userId } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [lastSelectedCharId, setLastSelectedCharId] = useState<string | null>(null);
+  const [previewCharacter, setPreviewCharacter] = useState<Character | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // 角色列表：已登录且配置了 Supabase 则从数据库拉取，否则从本地恢复
   useEffect(() => {
@@ -73,18 +122,13 @@ const ProductApp = () => {
   // 角色变更：写回本地；Supabase 只同步「ready + 已有 Inworld voice_id」
   //（含分享到社区：is_public 与 voice_id 同一行 upsert）
   useEffect(() => {
-    if (characters.length > 0) storage.saveCharacters(characters);
+    storage.saveCharacters(characters);
     if (userId && hasSupabase) {
       characters.filter(shouldSyncCharacterToSupabase).forEach((c) => {
         void upsertCharacter(userId, c);
       });
     }
   }, [characters, userId]);
-
-  const handleLangChange = (lang: LanguageCode) => {
-    setCurrentLang(lang);
-    storage.setLanguage(lang);
-  };
 
   const handleCloneStart = (tempChar: Character) => {
     setCharacters(prev => [tempChar, ...prev]);
@@ -102,12 +146,54 @@ const ProductApp = () => {
 
   const handleSelectCharacter = (char: Character) => {
     if (char.status === 'ready') {
-      setSelectedCharId(char.id);
-      setView('CHARACTER_DETAIL');
+      setPreviewCharacter(char);
+      setLastSelectedCharId(char.id);
+      navigate(`/app/characters/${char.id}`);
     }
   };
 
-  const selectedChar = characters.find(c => c.id === selectedCharId);
+  const isLearningView = location.pathname.startsWith('/app/learning/');
+  const isCharacterDetailView = location.pathname.startsWith('/app/characters/') && location.pathname !== '/app/characters';
+  const isCharacterListView = location.pathname === '/app/characters';
+  const homeTab: HomeTab = location.pathname === '/app/clone' ? 'clone' : 'learn';
+  const view: ViewState = isLearningView
+    ? 'LEARNING'
+    : isCharacterDetailView
+      ? 'CHARACTER_DETAIL'
+      : isCharacterListView
+        ? 'CHARACTER_LIST'
+        : 'HOME';
+
+  const detailId = useMemo(() => {
+    const match = location.pathname.match(/^\/app\/characters\/([^/]+)$/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }, [location.pathname]);
+
+  const learningId = useMemo(() => {
+    const match = location.pathname.match(/^\/app\/learning\/([^/]+)$/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }, [location.pathname]);
+
+  const activeCharacterId = learningId || detailId || lastSelectedCharId;
+  const selectedChar = useMemo(() => {
+    if (!activeCharacterId) return null;
+    const found = characters.find((c) => c.id === activeCharacterId);
+    if (found) return found;
+    if (previewCharacter?.id === activeCharacterId) return previewCharacter;
+    return null;
+  }, [activeCharacterId, characters, previewCharacter]);
+
+  useEffect(() => {
+    if (selectedChar) {
+      setLastSelectedCharId(selectedChar.id);
+    }
+  }, [selectedChar]);
+
+  useEffect(() => {
+    if ((isCharacterDetailView || isLearningView) && !selectedChar) {
+      navigate('/app/characters', { replace: true });
+    }
+  }, [isCharacterDetailView, isLearningView, navigate, selectedChar]);
 
   const updateCharacter = (updated: Character) => {
     setCharacters((prev) =>
@@ -117,7 +203,8 @@ const ProductApp = () => {
 
   const handleDeleteCharacter = (characterId: string) => {
     setCharacters((prev) => prev.filter((c) => c.id !== characterId));
-    if (selectedCharId === characterId) setSelectedCharId(null);
+    if (lastSelectedCharId === characterId) setLastSelectedCharId(null);
+    if (previewCharacter?.id === characterId) setPreviewCharacter(null);
     if (userId && hasSupabase) deleteCharacter(userId, characterId);
   };
 
@@ -127,18 +214,19 @@ const ProductApp = () => {
       content = (
         <HomeView
           homeTab={homeTab}
-          setHomeTab={setHomeTab}
+          setHomeTab={(tab) => navigate(tab === 'learn' ? '/app/learn' : '/app/clone')}
           characters={characters}
           onSelectCharacterForLearning={(c) => {
-            setSelectedCharId(c.id);
-            setView('LEARNING');
+            setPreviewCharacter(c);
+            setLastSelectedCharId(c.id);
+            navigate(`/app/learning/${c.id}`);
           }}
           onCloneSuccess={handleCloneSuccess}
           onCloneFailed={handleCloneFailed}
           onCloneStart={handleCloneStart}
           hasInvited={storage.hasInvited()}
           onSelectCharacter={handleSelectCharacter}
-          onGoToCharacterList={() => setView('CHARACTER_LIST')}
+          onGoToCharacterList={() => navigate('/app/characters')}
         />
       );
       break;
@@ -147,13 +235,11 @@ const ProductApp = () => {
         <CharacterList 
           characters={characters} 
           onSelect={(c) => {
-            setSelectedCharId(c.id);
-            setView('CHARACTER_DETAIL');
+            setPreviewCharacter(c);
+            setLastSelectedCharId(c.id);
+            navigate(`/app/characters/${c.id}`);
           }} 
-          onCreateNew={() => {
-            setHomeTab('clone');
-            setView('HOME');
-          }}
+          onCreateNew={() => navigate('/app/clone')}
           onUseCommunity={(char) => setCharacters((prev) => [char, ...prev])}
         />
       );
@@ -163,15 +249,12 @@ const ProductApp = () => {
         content = (
           <CharacterDetail 
             character={selectedChar} 
-            onBack={() => setView('CHARACTER_LIST')}
-            onStartLearning={() => setView('LEARNING')}
+            onBack={() => navigate('/app/characters')}
+            onStartLearning={() => navigate(`/app/learning/${selectedChar.id}`)}
             onUpdateCharacter={updateCharacter}
             onDelete={handleDeleteCharacter}
             showToast={setToastMsg}
-            onCreateNew={() => {
-              setHomeTab('clone');
-              setView('HOME');
-            }}
+            onCreateNew={() => navigate('/app/clone')}
           />
         );
       }
@@ -181,7 +264,7 @@ const ProductApp = () => {
         content = (
           <LearningView 
             character={selectedChar} 
-            onBack={() => setView('CHARACTER_DETAIL')}
+            onBack={() => navigate(`/app/characters/${selectedChar.id}`)}
           />
         );
       }
@@ -189,7 +272,7 @@ const ProductApp = () => {
   }
 
   return (
-    <div className="flex min-h-screen font-sans bg-gray-50/50">
+    <div className="flex min-h-screen bg-[#f5f5f7]">
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
@@ -205,23 +288,24 @@ const ProductApp = () => {
       <Header
         view={view}
         homeTab={homeTab}
-        hasSelectedCharacter={!!selectedCharId}
+        hasSelectedCharacter={!!lastSelectedCharId}
         currentLang={currentLang}
-        setLang={handleLangChange}
-        goToLearn={() => { setView('HOME'); setHomeTab('learn'); }}
-        goToClone={() => { setView('HOME'); setHomeTab('clone'); }}
-        goToCharacterList={() => setView('CHARACTER_LIST')}
-        goToCharacterDetail={() => selectedCharId && setView('CHARACTER_DETAIL')}
+        setLang={onLanguageChange}
+        goHome={() => navigate('/')}
+        goToLearn={() => navigate('/app/learn')}
+        goToClone={() => navigate('/app/clone')}
+        goToCharacterList={() => navigate('/app/characters')}
+        goToCharacterDetail={() => lastSelectedCharId && navigate(`/app/characters/${lastSelectedCharId}`)}
         onBack={
-          view === 'LEARNING' ? () => setView('CHARACTER_DETAIL')
-          : view === 'CHARACTER_DETAIL' ? () => setView('CHARACTER_LIST')
+          view === 'LEARNING' && selectedChar ? () => navigate(`/app/characters/${selectedChar.id}`)
+          : view === 'CHARACTER_DETAIL' ? () => navigate('/app/characters')
           : undefined
         }
         showBackButton={view === 'LEARNING' || view === 'CHARACTER_DETAIL'}
       />
 
-      <main className="min-h-screen min-w-0 flex-1 overflow-x-auto pb-safe pt-2">
-        <div className="mx-auto max-w-4xl px-4">{content}</div>
+      <main className="min-h-screen min-w-0 flex-1 overflow-x-auto pb-safe py-6">
+        <div className="mx-auto max-w-5xl px-5">{content}</div>
       </main>
 
       {toastMsg && (

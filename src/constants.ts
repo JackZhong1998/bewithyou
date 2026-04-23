@@ -3,10 +3,7 @@ import { Language, VocabularyWord, Character } from './types';
 export const LANGUAGES: Language[] = [
   { code: 'zh-CN', label: '简体中文' },
   { code: 'zh-TW', label: '繁體中文' },
-  { code: 'ko-KR', label: '한국어' },
-  { code: 'ja-JP', label: '日本語' },
-  { code: 'th-TH', label: 'ไทย' },
-  { code: 'vi-VN', label: 'Tiếng Việt' },
+  { code: 'en-US', label: 'English' },
 ];
 
 export const AUDIO_SOURCE_LANGUAGES = [

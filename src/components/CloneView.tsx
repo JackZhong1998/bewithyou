@@ -8,6 +8,7 @@ import {
 } from '../constants';
 import { cloneVoice } from '../services/inworldService';
 import { InviteModal } from './InviteModal';
+import { useI18n } from '../i18n';
 
 interface CloneViewProps {
   onCloneSuccess: (char: Character) => void;
@@ -36,6 +37,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
   const [roleName, setRoleName] = useState('');
   const [roleDescription, setRoleDescription] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useI18n();
 
   const validateFileDuration = (file: File): Promise<number> => {
     return new Promise((resolve, reject) => {
@@ -51,7 +53,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
       };
       media.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error('无法读取音频时长'));
+        reject(new Error(t('clone.durationReadError')));
       };
     });
   };
@@ -63,7 +65,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
       const isVideo = file.type.startsWith('video/');
 
       if (!isAudio && !isVideo) {
-        alert('仅支持音频或视频文件');
+        alert(t('clone.fileTypeError'));
         return;
       }
 
@@ -71,8 +73,8 @@ export const CloneView: React.FC<CloneViewProps> = ({
       if (file.size > maxSizeMB * 1024 * 1024) {
         alert(
           isAudio
-            ? '音频文件大小不能超过 20MB'
-            : '视频文件大小不能超过 100MB'
+            ? t('clone.fileAudioSizeError')
+            : t('clone.fileVideoSizeError')
         );
         return;
       }
@@ -80,7 +82,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
       try {
         const duration = await validateFileDuration(file);
         if (duration < 30 || duration > 300) {
-          alert('请上传 30 秒 ~ 5 分钟之间的音频片段');
+          alert(t('clone.durationError'));
           return;
         }
       } catch (err) {
@@ -104,11 +106,11 @@ export const CloneView: React.FC<CloneViewProps> = ({
 
   const processCloning = async () => {
     setIsProcessing(true);
-    setCloningProgress('正在处理音频...');
+    setCloningProgress(t('clone.processingAudio'));
     
     const defaultNameIndex = (characters?.length || 0) + 1;
-    const finalName = (roleName || '').trim() || `我的角色#${String(defaultNameIndex).padStart(3, '0')}`;
-    const finalDescription = (roleDescription || '').trim() || '这是一个通过语音克隆创建的角色';
+    const finalName = (roleName || '').trim() || t('clone.defaultName', { index: String(defaultNameIndex).padStart(3, '0') });
+    const finalDescription = (roleDescription || '').trim() || t('clone.defaultDescription');
 
     // Create cloning character first
     const tempChar: Character = {
@@ -120,7 +122,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
       createdAt: Date.now(),
       description: finalDescription,
       isPublic: false,
-      creatorName: '本机用户',
+      creatorName: t('characters.localUser'),
     };
     
     if (onCloneStart) {
@@ -136,7 +138,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
         removeNoise
       );
       
-      setCloningProgress('克隆完成！');
+      setCloningProgress(t('clone.processingDone'));
       
       const newChar: Character = {
         ...tempChar,
@@ -156,7 +158,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
       }, 500);
     } catch (error: any) {
       console.error('Cloning failed:', error);
-      alert(`克隆失败: ${error.message || '请重试'}`);
+      alert(`${t('clone.failPrefix')}: ${error.message || 'Please retry.'}`);
       setCloningProgress(null);
       // Remove failed character
       if (onCloneFailed) {
@@ -173,18 +175,18 @@ export const CloneView: React.FC<CloneViewProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
+    <div className="mx-auto max-w-3xl space-y-8 px-2 py-2 animate-fade-in">
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">克隆声音</h1>
-        <p className="text-gray-500">创建属于你的数字陪伴</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-[#1d1d1f]">{t('clone.pageTitle')}</h1>
+        <p className="text-sm text-gray-500">{t('clone.pageSubtitle')}</p>
       </div>
 
       {/* Upload Area */}
       <div 
         onClick={() => fileInputRef.current?.click()}
         className={`
-          relative border-2 border-dashed rounded-3xl p-10 text-center cursor-pointer transition-all duration-300
-          ${selectedFile ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}
+          relative cursor-pointer rounded-3xl border border-dashed p-10 text-center transition-all duration-300
+          ${selectedFile ? 'border-black/30 bg-white' : 'border-black/20 bg-white hover:border-black/40'}
         `}
       >
         <input 
@@ -200,49 +202,49 @@ export const CloneView: React.FC<CloneViewProps> = ({
           </div>
           <div>
             <p className="font-semibold text-gray-900">
-              {selectedFile ? selectedFile.name : '点击上传音频或视频'}
+              {selectedFile ? t('clone.uploadTitle.selected', { name: selectedFile.name }) : t('clone.uploadTitle.empty')}
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              支持 MP3 / WAV / M4A 音频（≤20MB）及 MP4 / MOV 视频（≤100MB）
+              {t('clone.uploadFormats')}
             </p>
             <p className="text-xs text-gray-400 mt-2">
-              建议：30 秒 - 5 分钟清晰语音，避免背景噪音
+              {t('clone.uploadTip')}
             </p>
           </div>
         </div>
       </div>
 
       {/* Settings */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-6">
+      <div className="space-y-6 rounded-3xl border border-black/10 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">角色名称（可选）</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">{t('clone.roleNameLabel')}</label>
             <input
               type="text"
               value={roleName}
               onChange={(e) => setRoleName(e.target.value)}
-              placeholder="例如：温柔男友 / 严厉老师 / 虚拟恋人"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={t('clone.roleNamePlaceholder')}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/20"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">角色描述（可选）</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">{t('clone.roleDescLabel')}</label>
             <input
               type="text"
               value={roleDescription}
               onChange={(e) => setRoleDescription(e.target.value)}
-              placeholder="例如：你是我在国外留学的男朋友，声音温柔，会耐心纠正我的发音"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={t('clone.roleDescPlaceholder')}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/20"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">原声语言</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">{t('clone.sourceLanguage')}</label>
           <select 
             value={sourceLang}
             onChange={(e) => setSourceLang(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/20"
           >
             {AUDIO_SOURCE_LANGUAGES.map(lang => (
               <option key={lang} value={lang}>{lang}</option>
@@ -259,7 +261,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
               className="mt-1 h-5 w-5 shrink-0 text-blue-600 rounded focus:ring-blue-500 border-gray-300" 
             />
             <span className="text-sm text-gray-600">
-              去掉背景噪音
+              {t('clone.removeNoise')}
             </span>
           </label>
 
@@ -271,7 +273,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
               className="mt-1 h-5 w-5 shrink-0 text-blue-600 rounded focus:ring-blue-500 border-gray-300" 
             />
             <span className="text-sm text-gray-500 leading-relaxed">
-              同意用户协议和隐私协议。通过使用语音克隆，您证明您拥有克隆这些语音样本的所有法律同意/权利，并且您不会将生成的任何用于非法或有害目的。该服务受服务条款和隐私政策的约束。
+              {t('clone.agreement')}
             </span>
           </label>
         </div>
@@ -282,13 +284,13 @@ export const CloneView: React.FC<CloneViewProps> = ({
         onClick={handleStartClone}
         disabled={!selectedFile || !agreed || isProcessing}
         className={`
-          w-full py-4 rounded-2xl font-semibold text-lg shadow-lg transition-all transform active:scale-95
+          w-full rounded-2xl py-4 text-lg font-semibold shadow-lg transition-all active:scale-[0.99]
           ${(!selectedFile || !agreed || isProcessing) 
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-            : 'bg-black text-white hover:bg-gray-800 shadow-blue-500/20'}
+            : 'bg-[#1d1d1f] text-white hover:bg-black shadow-black/20'}
         `}
       >
-        {isProcessing ? (cloningProgress || '克隆中...') : '去克隆'}
+        {isProcessing ? (cloningProgress || t('clone.processing')) : t('clone.start')}
       </button>
 
       {/* Cloning Progress */}
@@ -300,7 +302,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
 
       {/* Video Tools */}
       <div className="pt-8 border-t border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">视频下载工具推荐</h3>
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">{t('clone.toolsTitle')}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {VIDEO_TOOLS.map((tool) => (
             <a 
@@ -327,7 +329,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
       {/* Character List Below Clone Form */}
       {characters.length > 0 && (
         <div className="mt-12 pt-8 border-t border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">我的角色</h2>
+          <h2 className="mb-6 text-2xl font-semibold text-[#1d1d1f]">{t('clone.myCharacters')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {characters.map(char => (
               <div 
@@ -347,7 +349,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                   {char.status === 'cloning' && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <div className="text-white text-xs font-medium animate-pulse">克隆中...</div>
+                      <div className="text-white text-xs font-medium animate-pulse">{t('clone.cloning')}</div>
                     </div>
                   )}
                 </div>

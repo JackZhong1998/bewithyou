@@ -4,6 +4,7 @@ import { Character, LearningResult, WordLearningRecord } from '../types';
 import { VOCABULARY_LIST } from '../constants';
 import { playAudio } from '../services/inworldService';
 import { storage } from '../utils/storage';
+import { useI18n } from '../i18n';
 
 interface LearningViewProps {
   character: Character;
@@ -14,6 +15,7 @@ export const LearningView: React.FC<LearningViewProps> = ({
   character, 
   onBack 
 }) => {
+  const { t } = useI18n();
   const [currentIndex, setCurrentIndex] = useState(0);
   const word = VOCABULARY_LIST[currentIndex];
   const [playing, setPlaying] = useState<string | null>(null);
@@ -67,17 +69,17 @@ export const LearningView: React.FC<LearningViewProps> = ({
   };
 
   const explainText = useMemo(() => {
-    const roleDesc = character.description || '一个温柔的英语学习搭子';
-    return `嗨，我们来学单词 ${word.word} ～ 它的意思是「${word.meaning}」。想象我就是${roleDesc}，用你的节奏陪你慢慢来。先跟我读一遍 ${word.word}，然后看看下面的例句，试着在脑子里用这个词给我发一条暧昧小短信吧。`;
-  }, [character.description, word.word, word.meaning]);
+    const roleDesc = character.description || t('learning.defaultRoleDesc');
+    return t('learning.explain', { word: word.word, meaning: word.meaning, roleDesc });
+  }, [character.description, t, word.meaning, word.word]);
 
   const masteryText = useMemo(() => {
-    if (!learningRecord) return '还没有学习记录';
+    if (!learningRecord) return t('learning.noRecord');
     const rate = learningRecord.totalTimes > 0
       ? Math.round((learningRecord.knownTimes / learningRecord.totalTimes) * 100)
       : 0;
-    return `学习次数：${learningRecord.totalTimes}，认识率：${rate}%`;
-  }, [learningRecord]);
+    return t('learning.stats', { total: learningRecord.totalTimes, rate });
+  }, [learningRecord, t]);
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -116,7 +118,7 @@ export const LearningView: React.FC<LearningViewProps> = ({
         {/* 单词 + 头像区 */}
         <div className="mt-4 mb-6 text-center">
           <div className="inline-flex items-center gap-3 px-5 py-3 rounded-full bg-white/10 backdrop-blur border border-white/20 mb-4">
-            <span className="text-sm opacity-80">今日单词</span>
+            <span className="text-sm opacity-80">{t('learning.todayWord')}</span>
             <span className="text-xs opacity-60">
               {currentIndex + 1} / {VOCABULARY_LIST.length}
             </span>
@@ -207,26 +209,26 @@ export const LearningView: React.FC<LearningViewProps> = ({
               onClick={() => handleResultAndNext('known')}
               className="py-3 rounded-2xl bg-emerald-400 text-gray-900 font-semibold text-sm shadow-lg shadow-emerald-500/40"
             >
-              认识 😊
+              {t('learning.known')} 😊
             </button>
             <button
               onClick={() => handleResultAndNext('vague')}
               className="py-3 rounded-2xl bg-amber-300 text-gray-900 font-semibold text-sm shadow-lg shadow-amber-400/40"
             >
-              模糊 🤔
+              {t('learning.vague')} 🤔
             </button>
             <button
               onClick={() => handleResultAndNext('unknown')}
               className="py-3 rounded-2xl bg-rose-400 text-gray-900 font-semibold text-sm shadow-lg shadow-rose-500/40"
             >
-              不认识 😵
+              {t('learning.unknown')} 😵
             </button>
           </div>
         </div>
 
         {/* 底部提示 */}
         <div className="text-[10px] text-center opacity-60 pb-safe">
-          小提示：随时可以返回角色详情，换一个 TA 陪你背单词。
+          {t('learning.tip')}
         </div>
       </div>
     </div>
