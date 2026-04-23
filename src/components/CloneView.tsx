@@ -256,7 +256,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
               type="checkbox" 
               checked={removeNoise}
               onChange={(e) => setRemoveNoise(e.target.checked)}
-              className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300" 
+              className="mt-1 h-5 w-5 shrink-0 text-blue-600 rounded focus:ring-blue-500 border-gray-300" 
             />
             <span className="text-sm text-gray-600">
               去掉背景噪音
@@ -268,7 +268,7 @@ export const CloneView: React.FC<CloneViewProps> = ({
               type="checkbox" 
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300" 
+              className="mt-1 h-5 w-5 shrink-0 text-blue-600 rounded focus:ring-blue-500 border-gray-300" 
             />
             <span className="text-sm text-gray-500 leading-relaxed">
               同意用户协议和隐私协议。通过使用语音克隆，您证明您拥有克隆这些语音样本的所有法律同意/权利，并且您不会将生成的任何用于非法或有害目的。该服务受服务条款和隐私政策的约束。
